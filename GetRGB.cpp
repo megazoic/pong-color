@@ -1,9 +1,10 @@
-#include <stdio.h>
+#include <iostream>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
 #include <raspicam/raspicam_still_cv.h>
 
 using namespace cv;
+using namespace std;
 
 const char color[] = {'b', 'g', 'r'};
 const int xposit[4] = {261, 322, 386, 450};
