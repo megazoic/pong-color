@@ -1,42 +1,51 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <opencv2/opencv.hpp>
+#include <raspicam/raspicam_still_cv.h>
 
 using namespace cv;
-struct Posit
-{
-	int xvalue;
-	int yvalue;
-};
 
 const char color[] = {'b', 'g', 'r'};
+const int xposit[4] = {261, 322, 386, 450};
+const int yposit[4] = {145, 191, 242, 305};
 
-const struct Posit pos[6] = {{352,672}, {940,1169}, {1612,1148}, {912,1656}, {1634,1680}, {2284,1684}};
 int main(int argc, char** argv )
 {
-    if ( argc != 2 )
-    {
-        printf("usage: DisplayImage.out <Image_Path>\n");
-        return -1;
-    }
-
+	raspicam::RaspiCam_Still_Cv Camera;
     Mat image;
-    image = imread( argv[1], 1 );
 
+    //set camera params
+    Camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
+
+	//open camera
+    cout<<"Opening Camera..."<<endl;
+    if (!Camera.open()) {cerr<<"Error opening the camera"<<endl;return -1;}
+    //Start capture
+    cout<<"sleeping for 1 secs"<<endl;
+	sleep(1);
+	Camera.grab();
+    Camera.retrieve(image);
+	
+	Camera.release();
+	
     if ( !image.data )
     {
         printf("No image data \n");
         return -1;
     }
-	//namedWindow("Display Image", WINDOW_AUTOSIZE );
-    //imshow("Display Image", image);
 
-    //waitKey(0);
-	for(int i = 0; i < 6; i++)
+	for(int i = 0; i < 4; i++)
 	{
-		for(int j = 0; j<3; j++)
+		for(int j = 0; j < 4; j++)
 		{
-			double rgbValue = image.at<cv::Vec3b>(pos[i].yvalue,pos[i].xvalue)[j];
-			std::cout << "position " << i << ' ' << color[j] << ' ' << rgbValue << '\n';
+			for(int k = 0; k<3; k++)
+			{
+				Rect roi( xposit[i],yposit[j], 15, 15 );
+				Mat image_roi = image( roi );
+				Scalar avgPixelIntensity = mean( image_roi );
+				//double rgbValue = image.at<cv::Vec3b>(pos[i].yvalue,pos[i].xvalue)[j];
+				std::cout << "Xposition " << i << ' ' << color[k] << ' ' << avgPixelIntensity[k] << '\n';
+			}
 		}
 	}
 	//delete [] pos;
