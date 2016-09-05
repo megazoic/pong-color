@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
 #include <raspicam/raspicam_still_cv.h>
@@ -12,6 +13,7 @@ const int yposit[4] = {145, 191, 242, 305};
 
 int main(int argc, char** argv )
 {
+	ofstream rgbfile;
 	raspicam::RaspiCam_Still_Cv Camera;
     Mat image;
 
@@ -34,7 +36,7 @@ int main(int argc, char** argv )
         printf("No image data \n");
         return -1;
     }
-
+	rgbfile.open ("rgbfile.txt", ios::app);
 	for(int i = 0; i < 4; i++)
 	{
 		for(int j = 0; j < 4; j++)
@@ -45,10 +47,11 @@ int main(int argc, char** argv )
 				Mat image_roi = image( roi );
 				Scalar avgPixelIntensity = mean( image_roi );
 				//double rgbValue = image.at<cv::Vec3b>(pos[i].yvalue,pos[i].xvalue)[j];
-				std::cout << "Xposition " << i << ' ' << color[k] << ' ' << avgPixelIntensity[k] << '\n';
+				rgbfile << "Xpos " << i << " Ypos " << j << ' ' << color[k] << ' ' << avgPixelIntensity[k] << '\n';
 			}
 		}
 	}
+	rgbfile.close();
 	//delete [] pos;
 
     return 0;
