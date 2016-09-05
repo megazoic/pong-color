@@ -5,12 +5,14 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <raspicam/raspicam_still_cv.h>
 #include <ctime>
+#include <string>
 
 using namespace cv;
 using namespace std;
 
 const int xposit[4] = {261, 322, 386, 450};
 const int yposit[4] = {145, 191, 242, 305};
+const unsigned int fieldSize = 16;
 
 class ColorPicker
 {
@@ -19,12 +21,15 @@ public:
 		unsigned int lowHCutoff, unsigned int highHCutoff);
 	~ColorPicker();
 	 //returns a color 0 - none, 1 - yellow, 2 - red, 3 - blue, 4 - white
-	int whatColor(unsigned int Hue, unsigned int Sat, unsigned int Val);
+	void whatColor(unsigned int Hue, unsigned int Sat, unsigned int Val, unsigned int location);
+	void setPattern(char c, int loc);
+	string getPattern();
 private:
 	unsigned int minVal;
 	unsigned int minSat;
 	unsigned int lowHCO;
 	unsigned int highHCO;
+	string outPattern;
 };
 ColorPicker::ColorPicker(unsigned int minValue, unsigned int minSaturation,
 	unsigned int lowHCutoff, unsigned int highHCutoff)
@@ -33,35 +38,51 @@ ColorPicker::ColorPicker(unsigned int minValue, unsigned int minSaturation,
 	minSat = minSaturation;
 	lowHCO = lowHCutoff;
 	highHCO = highHCutoff;
+	outPattern = ""; //allow for commas and null char
 }
 ColorPicker::~ColorPicker()
 {
 }
-int ColorPicker::whatColor(unsigned int Hue, unsigned int Sat, unsigned int Val)
+void ColorPicker::setPattern(char c, int loc)
 {
-	int color;
+	outPattern += c;
+	if(loc < fieldSize - 1)
+		outPattern += ',';
+	else
+		outPattern += '\0';
+}
+string ColorPicker::getPattern()
+{
+	return outPattern;
+}
+void ColorPicker::whatColor(unsigned int Hue, unsigned int Sat, unsigned int Val, unsigned int location)
+{
+	char color;
 	if(Val < minVal)
-		color = 0; //empty slot
+		color = '0'; //empty slot
 	else
 	{
 		if(Sat < minSat)
-			color = 4; //white
+			color = '4'; //white
 		else // use Hue to test for color
 		{
 			if(Hue < lowHCO)
-				color = 1; //yellow
-			if(Hue > highHCO)
-				color = 3; //red
+				color = '1'; //yellow
 			else
-				color = 2; //blue
+			{
+				if(Hue > highHCO)
+					color = '3'; //red
+				else
+					color = '2'; //blue
+			}
 		}
 	}
-	return color;
+	setPattern(color, location);
 }
 int main()
 {
-	ColorPicker cp(60, 60, 50, 120); //minVal, minSat, lowHueCut, highHueCut
-	ofstream rgbfile;
+	ColorPicker cp(68, 60, 50, 120); //minVal, minSat, lowHueCut, highHueCut
+	ofstream outfile;
 	raspicam::RaspiCam_Still_Cv Camera;
 	
 	time_t now = time(0);
@@ -92,8 +113,9 @@ int main()
 	//Convert RBG to HSV for color recognition
 	cvtColor(imgOriginal, imgHSV, COLOR_BGR2HSV);
 	
-	rgbfile.open ("rgbfile.txt", ios::app);
-	rgbfile << "Data collected on: " << dt << '\n';
+	outfile.open ("outfile.txt", ios::app);
+	//outfile << "Data collected on: " << dt << '\n';
+	int count = 0;
 	for(int i = 0; i < 4; i++)
 	{
 		for(int j = 0; j < 4; j++)
@@ -106,13 +128,15 @@ int main()
 				Mat image_roi = imgHSV( roi );
 				Scalar avgPixelIntensity = mean( image_roi );
 				hsv[k] = (int) avgPixelIntensity[k];
-				rgbfile << i << ',' << j << ',' << avgPixelIntensity[k] << '\n';
+				//outfile << i << ',' << j << ',' << avgPixelIntensity[k] << '\n';
 			}
-			int wc = cp.whatColor(hsv[0], hsv[1], hsv[2]);
-			rgbfile << "in this position " << wc << '\n';
+			cp.whatColor(hsv[0], hsv[1], hsv[2], count);
+			count = ++count;
+			//outfile << "in this position " << wc << '\n';
 		}
 	}
-	rgbfile.close();
+	outfile << cp.getPattern();
+	outfile.close();
 	//delete [] pos;
 
     return 0;
