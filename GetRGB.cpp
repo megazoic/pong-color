@@ -2,7 +2,9 @@
 #include <fstream>
 #include <unistd.h>
 #include <opencv2/opencv.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include <raspicam/raspicam_still_cv.h>
+#include <ctime>
 
 using namespace cv;
 using namespace std;
@@ -11,11 +13,16 @@ const char color[] = {'b', 'g', 'r'};
 const int xposit[4] = {261, 322, 386, 450};
 const int yposit[4] = {145, 191, 242, 305};
 
-int main(int argc, char** argv )
+int main()
 {
 	ofstream rgbfile;
 	raspicam::RaspiCam_Still_Cv Camera;
-    Mat image;
+	
+	time_t now = time(0);
+	char* dt = ctime(&now);
+	
+    Mat imgOriginal;
+	Mat imgHSV;
 
     //set camera params
     Camera.set( CV_CAP_PROP_FORMAT, CV_8UC3 );
@@ -27,16 +34,20 @@ int main(int argc, char** argv )
     cout<<"sleeping for 1 secs"<<endl;
 	sleep(1);
 	Camera.grab();
-    Camera.retrieve(image);
+    Camera.retrieve(imgOriginal);
 	
 	Camera.release();
 	
-    if ( !image.data )
+    if ( !imgOriginal.data )
     {
         printf("No image data \n");
         return -1;
     }
+	//Convert RBG to HSV for color recognition
+	cvtColor(imgOriginal, imgHSV, COLOR_BGR2HSV);
+	
 	rgbfile.open ("rgbfile.txt", ios::app);
+	rgbfile << "Data collected on: " << dt << '\n';
 	for(int i = 0; i < 4; i++)
 	{
 		for(int j = 0; j < 4; j++)
@@ -44,7 +55,7 @@ int main(int argc, char** argv )
 			for(int k = 0; k<3; k++)
 			{
 				Rect roi( xposit[i],yposit[j], 15, 15 );
-				Mat image_roi = image( roi );
+				Mat image_roi = imgHSV( roi );
 				Scalar avgPixelIntensity = mean( image_roi );
 				//double rgbValue = image.at<cv::Vec3b>(pos[i].yvalue,pos[i].xvalue)[j];
 				rgbfile << "Xpos " << i << " Ypos " << j << ' ' << color[k] << ' ' << avgPixelIntensity[k] << '\n';
